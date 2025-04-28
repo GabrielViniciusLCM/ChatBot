@@ -1,39 +1,53 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models import Session, Time, Jogador
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route("/chat", methods=["POST"])
+# Banco de informações fixas
+elenco = [
+    {'pseudonimo': 'yuurih', 'nome': 'Yuri Santos', 'nacionalidade': 'Brasil', 'posição': 'Rifler'},
+    {'pseudonimo': 'KSCERATO', 'nome': 'Kaike Cerato', 'nacionalidade': 'Brasil', 'posição': 'Rifler'},
+    {'pseudonimo': 'FalleN', 'nome': 'Gabriel Toledo', 'nacionalidade': 'Brasil', 'posição': 'Rifler'},
+    {'pseudonimo': 'molodoy', 'nome': 'Danil Golubenko', 'nacionalidade': 'Cazaquistão', 'posição': 'AWPer'},
+    {'pseudonimo': 'YEKINDAR', 'nome': 'Mareks Gaļinskis', 'nacionalidade': 'Letônia', 'posição': 'Rifler'},
+    {'pseudonimo': 'sidde', 'nome': 'Sid Macedo', 'nacionalidade': 'Brasil', 'posição': 'Treinador'},
+    {'pseudonimo': 'Hepa', 'nome': 'Juan Borges', 'nacionalidade': 'Espanha', 'posição': 'Treinador assistente'}
+]
+
+@app.route('/chat', methods=['POST'])
 def chat():
-    user_message = request.json.get("message")
-    session = Session()
+    data = request.get_json()
+    message = data.get('message', '').lower()
 
-    response = "Desculpe, não entendi sua pergunta."
+    # Regras simples de interpretação
+    if "time" in message or "equipe" in message:
+        nomes = ", ".join(jogador['pseudonimo'] for jogador in elenco if "Treinador" not in jogador['posição'])
+        return jsonify({'response': f"Os jogadores da FURIA CS2 são: {nomes}."})
+    
+    elif "treinador" in message:
+        treinadores = ", ".join(jogador['pseudonimo'] for jogador in elenco if "Treinador" in jogador['posição'])
+        return jsonify({'response': f"Os treinadores da FURIA são: {treinadores}."})
+    
+    elif "awper" in message:
+        awper = next((j for j in elenco if j['posição'].lower() == 'awper'), None)
+        if awper:
+            return jsonify({'response': f"O AWPer da FURIA é {awper['pseudonimo']} ({awper['nome']})."})
+    
+    elif "capitão" in message:
+        capitao = next((j for j in elenco if 'fallen' in j['pseudonimo'].lower()), None)
+        if capitao:
+            return jsonify({'response': f"O capitão da equipe de CS da FURIA é {capitao['pseudonimo']} ({capitao['nome']})."})
+    
+    elif "jogadores" in message:
+        detalhes = ""
+        for jogador in elenco:
+            if "Treinador" not in jogador['posição']:
+                detalhes += f"{jogador['pseudonimo']} ({jogador['nome']}), {jogador['posição']} - {jogador['nacionalidade']}\n"
+        return jsonify({'response': detalhes})
 
-    if "time" in user_message.lower():
-        time = session.query(Time).first()
-        if time:
-            response = f"O time é '{time.nome}' e joga '{time.jogo_principal}'."
-        else:
-            response = "Não há times cadastrados ainda."
-    elif "jogadores" in user_message.lower():
-        jogadores = session.query(Jogador).all()
-        if jogadores:
-            response = "Jogadores: " + ", ".join([j.nome for j in jogadores])
-        else:
-            response = "Nenhum jogador cadastrado."
-    elif "jogo" in user_message.lower():
-        times = session.query(Time).all()
-        if times:
-            jogos = ", ".join(set([t.jogo_principal for t in times]))
-            response = "Jogos principais: " + jogos
-        else:
-            response = "Nenhum jogo cadastrado."
+    else:
+        return jsonify({'response': 'Desculpe, não entendi sua pergunta sobre a FURIA. Pode reformular?'})
 
-    session.close()
-    return jsonify({"response": response})
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
